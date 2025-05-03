@@ -1,1 +1,7 @@
 20250429	13:35:26	0ec81950-1400-480f-95d0-28603ae0e301	Error: Not allowed by CORS
+20250502	18:34:00	cfc68926-e742-42bf-b6a8-67a794d3b885	ReferenceError: whitelist is not defined
+20250502	18:34:05	5ffff2d2-edb2-4fbc-890f-1f079e50a25a	ReferenceError: whitelist is not defined
+20250502	18:35:28	96a9230a-5e1f-4689-aed5-d1e2e0abfb65	ReferenceError: whitelist is not defined
+20250502	18:36:17	ca2d6430-6a01-4f71-bd3f-c436a9a0703b	ReferenceError: whitelist is not defined
+20250502	18:36:46	e85ddc8d-9e3d-4155-be11-988114d07429	ReferenceError: whitelist is not defined
+20250502	18:38:26	7fdb20a0-5b03-4b3c-8a05-c1a1bfe736c2	ReferenceError: whitelist is not defined
