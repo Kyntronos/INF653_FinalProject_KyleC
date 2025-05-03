@@ -1,5 +1,6 @@
 const State = require('../model/States');
 const stateData = require('../model/statesData.json');
+const verifyStates = require('../middleware/verifyStates');
 
 const getAllStates = async (req, res) => {
     const states = await State.find();
