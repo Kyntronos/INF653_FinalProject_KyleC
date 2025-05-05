@@ -2,12 +2,48 @@ const State = require('../model/States');
 const stateData = require('../model/statesData.json');
 const verifyStates = require('../middleware/verifyStates');
 
+/*
 const getAllStates = async (req, res) => {
     const states = await State.find();
     if(!states) return res.status(204).json({'message': 'No states found.'});
     res.json(states);
 }
+*/
 
+const getAllStates = async (req, res) => {
+    try {
+        //console.log("statesData:", stateData);
+        // Load all funfacts from MongoDB
+        const mongoStates = await State.find();
+
+        // Create a map from stateCode to funfacts
+        const funfactsMap = {};
+        mongoStates.forEach(state => {
+            funfactsMap[state.stateCode] = state.funfacts;
+        });
+      
+        //Filtering on contiguity
+        let filteredStates = stateData;
+        if(req.query?.contig === 'true'){
+          filteredStates = stateData.filter(st => st.code !== 'AK' && st.code !== 'HI');
+        } else if (req.query?.contig === 'false'){
+          filteredStates = stateData.filter(st => st.code === 'AK' || st.code === 'HI');
+        }
+
+        // Merge funfacts into statesData
+        const mergedStates = filteredStates.map(state => {
+            const funfacts = funfactsMap[state.code];
+            return funfacts ? { ...state, funfacts } : state;
+        });
+
+        res.json(mergedStates);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+/*
 const createNewState = async (req, res) => {
     if(!req?.body?.state || !req?.body?.slug) {
         return res.status(400).json({'message': 'State and slug are required'});
@@ -24,13 +60,33 @@ const createNewState = async (req, res) => {
         console.error(err);
     }
 }
+*/
+
+const createNewState = async (req, res) => {
+    if (!req?.body?.stateCode) {
+        return res.status(400).json({ 'message': 'stateCode is required.' });
+    }
+
+    try {
+        const result = await State.create({
+            stateCode: req.body.stateCode.toUpperCase(),
+            funfacts: req.body.funfacts || []
+        });
+
+        res.status(201).json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ 'message': 'Error creating state data.' });
+    }
+};
+
 
 const updateState = async (req, res)=>{
     if(!req?.body?.code) {
-        return response.status(400).json({'message': 'A state code is required.'});
+        return res.status(400).json({'message': 'A state code is required.'});
     }
 
-    const state = await State.findOne({ _code: req.body.code }).exec();
+    const state = await State.findOne({ stateCode: req.body.code.toUpperCase() }).exec();
     if(!state){
         return res.status(204).json({'message': `No state matches code ${req.body.id}.`});
     }
@@ -43,28 +99,127 @@ const updateState = async (req, res)=>{
 
 const deleteState = async (req, res) => {
     if(!req?.body?.code) {
-        return response.status(400).json({'message': 'A state code is required.'});
+        return res.status(400).json({'message': 'A state code is required.'});
     }
 
-    const state = await State.findOne({ _code: req.body.code }).exec();
+    const state = await State.findOne({ stateCode: req.body.code.toUpperCase() }).exec();
     if(!state){
         return res.status(204).json({'message': `No state matches code ${req.body.id}.`});
     }
 
-    const result = await state.deleteOne({ _code: req.body.code });
+    const result = await state.deleteOne({ stateCode: req.body.code.toUpperCase() });
     res.json(result);
 }
-
+/*
 const getState = async (req, res) => {
     if(!req?.params?.code) {
-        return response.status(400).json({'message': 'A state code is required.'});
+        return res.status(400).json({'message': 'A state code is required.'});
     }
 
-    const state = await State.findOne({ _code: req.params.code }).exec();
+    const state = await State.findOne({ stateCode: req.params.code.toUpperCase() }).exec();
     if(!state){
         return res.status(204).json({'message': `No state matches code ${req.params.id}.`});
     }
     res.json(state);
+}
+*/
+
+const getState = async (req, res) => {
+    const stateCode = req.code; // Set by verifyStates middleware
+
+    // Find the base state info from statesData.json
+    const foundState = stateData.find(st => st.code === stateCode);
+    if (!foundState) {
+        return res.status(404).json({ message: `State code ${stateCode} not found.` });
+    }
+
+    try {
+        // Try to find any funfacts from MongoDB
+        const mongoState = await State.findOne({ stateCode }).exec();
+
+        // Merge funfacts if present
+        const responseState = mongoState?.funfacts?.length
+            ? { ...foundState, funfacts: mongoState.funfacts }
+            : foundState;
+
+        res.json(responseState);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+const getFunFact = async (req, res) => {
+    const stateCode = req.code; // From verifyStates
+    const fullState = stateData.find(state => state.code === stateCode);
+
+    try {
+        const mongoState = await State.findOne({ stateCode }).exec();
+
+        if (!mongoState || !mongoState.funfacts || mongoState.funfacts.length === 0) {
+            return res.status(404).json({ message: `No Fun Facts found for ${fullState.state}` });
+        }
+
+        const randomIndex = Math.floor(Math.random() * mongoState.funfacts.length);
+        const funfact = mongoState.funfacts[randomIndex];
+
+        res.json({ funfact });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+const getCapital = (req, res) => {
+    const stateCode = req.code;
+
+    // Find the state object in the JSON file
+    const state = stateData.find(st => st.code === stateCode);
+
+    if (!state) {
+        return res.status(404).json({ message: 'State not found.' });
+    }
+
+    res.json({ state: state.state, capital: state.capital_city });
+};
+
+const getNickname = (req, res) => {
+    const stateCode = req.code;
+  
+    //Find the state object in the files
+    const state = stateData.find(st => st.code === stateCode);
+  
+    if(!state){
+      return res.status(400).json({message: 'State not found.'});
+    }
+  
+    res.json({state: state.state, nickname: state.nickname });
+};
+
+const getPopulation = (req, res) => {
+    const stateCode = req.code;
+  
+    //Find the state...
+    const state = stateData.find(st => st.code === stateCode);
+  
+    if(!state){
+      return res.status(400).json({message: 'State not found.'});
+    }
+  
+    res.json({state: state.state, population: state.population.toLocaleString() });
+}
+
+const getAdmission = (req, res) => {
+    const stateCode = req.code;
+  
+    //Finding the state...
+    const state = stateData.find(st => st.code === stateCode);
+  
+    if(!state){
+      return res.status(400).json({message: 'State not found.'});
+    }
+  
+    res.json({state: state.state, admitted: state.admission_date });
 }
 
 module.exports = {
@@ -72,7 +227,12 @@ module.exports = {
     createNewState,
     updateState,
     deleteState,
-    getState
+    getState,
+    getFunFact,
+    getCapital,
+    getNickname,
+    getPopulation,
+    getAdmission
 }
 
 /*

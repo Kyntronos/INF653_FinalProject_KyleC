@@ -16,7 +16,7 @@ connectDB();
 //Custom middleware Logger
 app.use(logger);
 
-app.use(cors(corsOptions)); //Good for open API
+app.use(cors()); //Good for open API corsOptions
 
 //Built-in middleware
 app.use(express.urlencoded({ extended: false }));
