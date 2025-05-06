@@ -222,6 +222,100 @@ const getAdmission = (req, res) => {
     res.json({state: state.state, admitted: state.admission_date });
 }
 
+const postFunFact = async (req, res) => {
+    const stateCode = req.code;
+    const funfacts = req.body.funfacts;
+  
+    if(!funfacts){
+      return res.status(400).json({message: 'State fun facts value required' });
+    }
+  
+    if(!Array.isArray(funfacts)) {
+      return res.status(400).json({ message: 'State fun facts value must be an array' });
+    }
+  
+    try {
+      let state = await State.findOne({stateCode}).exec();
+      
+      if(!state){
+        state = await State.create({ stateCode, funfacts });
+      } else {
+        state.funfacts.push(...funfacts);
+        await state.save();
+      }
+      
+      res.status(201).json(state);
+      
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({message: 'Server Error' });
+    }
+};
+
+const patchFunFact = async (req, res) => {
+    const stateCode = req.code;
+    const { index, funfact } = req.body;
+    const fullState = stateData.find(state => state.code === stateCode);
+  
+    if(index === undefined) {
+      return res.status(400).json({ message: 'State fun fact index value required'});
+    } else if (funfact === undefined){
+      return res.status(400).json({ message: 'State fun fact value required'});
+    }
+  
+    try {
+      const state = await State.findOne({ stateCode }).exec();
+      
+      if(!state || !state.funfacts || state.funfacts.length === 0) {
+        return res.status(400).json({message: `No Fun Facts found for ${fullState.state}`});
+      }
+      
+      if(index > state.funfacts.length) {
+        return res.status(400).json({message: `No Fun Fact found at that index for ${fullState.state}`});
+      }
+      
+      state.funfacts[index - 1] = funfact;
+      await state.save();
+      
+      res.json(state);
+      
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({message: 'Server error'});
+    }
+};
+
+const deleteFunFact = async (req, res) => {
+    const stateCode = req.code;
+    const { index } = req.body;
+    const fullState = stateData.find(state => state.code === stateCode);
+  
+    if(index === undefined) {
+      return res.status(400).json({ message: 'State fun fact index value required'});
+    } 
+  
+    try {
+      const state = await State.findOne({ stateCode }).exec();
+      
+      if(!state || !state.funfacts || state.funfacts.length === 0) {
+        return res.status(400).json({message: `No Fun Facts found for ${fullState.state}`});
+      }
+      
+      if(index > state.funfacts.length) {
+        return res.status(400).json({message: `No Fun Fact found at that index for ${fullState.state}`});
+      }
+      
+      state.funfacts.splice(index - 1, 1);
+      await state.save();
+      
+      res.json({state: state.stateCode, funfacts: state.funfacts });
+      
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({message: 'Server error'});
+    }
+};
+
 module.exports = {
     getAllStates,
     createNewState,
@@ -232,7 +326,10 @@ module.exports = {
     getCapital,
     getNickname,
     getPopulation,
-    getAdmission
+    getAdmission,
+    postFunFact,
+    patchFunFact,
+    deleteFunFact
 }
 
 /*
